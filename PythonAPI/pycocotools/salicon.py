@@ -372,7 +372,6 @@ class SALICON:
         :return: res (obj)         : result api object
         """
         res = SALICON(list_of_images=self.list_of_images_from_path)
-        pdb.set_trace()
         res.dataset['images'] = [img for img in self.dataset['images']]
 
         print('Loading and preparing results...')
