@@ -122,7 +122,7 @@ class SALICON:
             self.dataset = dataset
             self.createIndex()
 
-    def createIndex(self, add_cats=True, sort_cats=True):
+    def createIndex(self):
         # create index
         print('creating index...')
         anns, imgs = {}, {}
@@ -166,6 +166,9 @@ class SALICON:
                     if cat_dict['id'] == i:
                         cats_sorted.append(cat_dict)
             cats = cats_sorted
+
+        if add_cats:
+            self.dataset['categories'] = cats # overwrite categories in class SALICON
 
         print('')        
         print('*'*20, ' DEBUG')
@@ -382,7 +385,7 @@ class SALICON:
         """
         res = SALICON(list_of_images=self.list_of_images_from_path)
         res.dataset['images'] = [img for img in self.dataset['images']]
-        pdb.set_trace()
+
         print('Loading and preparing results...')
         tic = time.time()
         if type(resFile) == str or (PYTHON_VERSION == 2 and type(resFile) == unicode):
@@ -401,7 +404,7 @@ class SALICON:
             for id, ann in enumerate(anns):
                 ann['id'] = id+1
         elif 'bbox' in anns[0] and not anns[0]['bbox'] == []:
-            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
+            res.dataset['categories'] = self.cats
             for id, ann in enumerate(anns):
                 bb = ann['bbox']
                 x1, x2, y1, y2 = [bb[0], bb[0]+bb[2], bb[1], bb[1]+bb[3]]
@@ -411,7 +414,7 @@ class SALICON:
                 ann['id'] = id+1
                 ann['iscrowd'] = 0
         elif 'segmentation' in anns[0]:
-            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
+            res.dataset['categories'] = self.cats
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann['area'] = maskUtils.area(ann['segmentation'])
@@ -420,7 +423,7 @@ class SALICON:
                 ann['id'] = id+1
                 ann['iscrowd'] = 0
         elif 'keypoints' in anns[0]:
-            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
+            res.dataset['categories'] = self.cats
             for id, ann in enumerate(anns):
                 s = ann['keypoints']
                 x = s[0::3]
@@ -433,6 +436,14 @@ class SALICON:
 
         res.dataset['annotations'] = anns
         res.createIndex(add_cats=False, sort_cats=False)
+
+        pdb.set_trace()
+        print("Val immages: {}, Val cats: {}, first cat name: {}".format(
+                                                                         len(res.dataset['images']),
+                                                                         len(res.dataset['categories']),
+                                                                         res.dataset['categories'][0],
+                                                                         )
+
         return res
 
     def download(self, tarDir = None, imgIds = [] ):
