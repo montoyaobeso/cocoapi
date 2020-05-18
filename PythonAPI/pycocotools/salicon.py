@@ -122,7 +122,7 @@ class SALICON:
             self.dataset = dataset
             self.createIndex()
 
-    def createIndex(self):
+    def createIndex(self, sort_cats=True):
         # create index
         print('creating index...')
         anns, imgs = {}, {}
@@ -156,14 +156,22 @@ class SALICON:
                     cat = {'id': salicon_cat_id, 'name': salicon_cat_label, 'supercategory': 'unset'}
                     cats.append(cat)
 
-        # sort cats (just to keep the order in the salicon.names file)
-        cats_sorted = []
-        for i in range(1, len(cats)+1):
-            cat = cats[i-1]
-            for cat_dict in cats:
-                if cat_dict['id'] == i:
-                    cats_sorted.append(cat_dict)
-        cats = cats_sorted
+        if sort_cats:
+            # sort cats (just to keep the order in the salicon.names file)
+            cats_sorted = []
+            for i in range(1, len(cats)+1):
+                cat = cats[i-1]
+                for cat_dict in cats:
+                    if cat_dict['id'] == i:
+                        cats_sorted.append(cat_dict)
+            cats = cats_sorted
+
+        print('')        
+        print('*'*20, ' DEBUG')
+        print('sort cats: {}'.format(sort_cats))
+        print(cats)
+        print('*'*20, ' DEBUG')
+        print('')
 
         if 'annotations' in self.dataset and 'categories' in self.dataset:
             for ann in self.dataset['annotations']:
@@ -423,7 +431,7 @@ class SALICON:
         print('DONE (t={:0.2f}s)'.format(time.time()- tic))
 
         res.dataset['annotations'] = anns
-        res.createIndex()
+        res.createIndex(sort_cats=False)
         return res
 
     def download(self, tarDir = None, imgIds = [] ):
