@@ -122,7 +122,7 @@ class SALICON:
             self.dataset = dataset
             self.createIndex()
 
-    def createIndex(self, sort_cats=True):
+    def createIndex(self, add_cats=True, sort_cats=True):
         # create index
         print('creating index...')
         anns, imgs = {}, {}
@@ -141,20 +141,21 @@ class SALICON:
                 if img['id'] in self.list_of_images.keys():
                     imgs[img['id']] = img
 
-        if 'categories' in self.dataset:
-            for cat in self.dataset['categories']:
-                if cat['id'] in self.COCO_TO_SALICON.keys():
-                    coco_cat_id = cat['id']
-                    coco_cat_label = cat['name']
-                    salicon_cat_id = self.COCO_TO_SALICON[coco_cat_id]
-                    salicon_cat_label = self.SALICON_CLASSES[salicon_cat_id-1]
-                    # print("COCO_CAT_ID ({}), COCO_LABEL ({}), SALICON_CAT_ID({}), SALICON_LABEL({})".format(coco_cat_id,
-                    #                                                                                         coco_cat_label,
-                    #                                                                                         salicon_cat_id,
-                    #                                                                                         salicon_cat_label
-                    #                                                                                         ))
-                    cat = {'id': salicon_cat_id, 'name': salicon_cat_label, 'supercategory': 'unset'}
-                    cats.append(cat)
+        if add_cats:
+            if 'categories' in self.dataset:
+                for cat in self.dataset['categories']:
+                    if cat['id'] in self.COCO_TO_SALICON.keys():
+                        coco_cat_id = cat['id']
+                        coco_cat_label = cat['name']
+                        salicon_cat_id = self.COCO_TO_SALICON[coco_cat_id]
+                        salicon_cat_label = self.SALICON_CLASSES[salicon_cat_id-1]
+                        # print("COCO_CAT_ID ({}), COCO_LABEL ({}), SALICON_CAT_ID({}), SALICON_LABEL({})".format(coco_cat_id,
+                        #                                                                                         coco_cat_label,
+                        #                                                                                         salicon_cat_id,
+                        #                                                                                         salicon_cat_label
+                        #                                                                                         ))
+                        cat = {'id': salicon_cat_id, 'name': salicon_cat_label, 'supercategory': 'unset'}
+                        cats.append(cat)
 
         if sort_cats:
             # sort cats (just to keep the order in the salicon.names file)
@@ -381,7 +382,7 @@ class SALICON:
         """
         res = SALICON(list_of_images=self.list_of_images_from_path)
         res.dataset['images'] = [img for img in self.dataset['images']]
-
+        pdb.set_trace()
         print('Loading and preparing results...')
         tic = time.time()
         if type(resFile) == str or (PYTHON_VERSION == 2 and type(resFile) == unicode):
@@ -431,7 +432,7 @@ class SALICON:
         print('DONE (t={:0.2f}s)'.format(time.time()- tic))
 
         res.dataset['annotations'] = anns
-        res.createIndex(sort_cats=False)
+        res.createIndex(add_cats=False, sort_cats=False)
         return res
 
     def download(self, tarDir = None, imgIds = [] ):
