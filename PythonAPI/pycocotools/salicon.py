@@ -107,9 +107,10 @@ class SALICON:
         # load dataset
         self.dataset,self.anns,self.cats,self.imgs = dict(),dict(),dict(),dict()
         self.imgToAnns, self.catToImgs = defaultdict(list), defaultdict(list)
-        self.list_of_images_from_path = list_of_images
 
+        self.path_to_list_of_images = list_of_images # To use in case of reload lists in loadRes function
         self.list_of_images = {}
+
         for img in list_of_images:
                     self.list_of_images[int(img.split('_')[2].split('.')[0])] = img
 
@@ -120,7 +121,60 @@ class SALICON:
             assert type(dataset)==dict, 'annotation file format {} not supported'.format(type(dataset))
             print('Done (t={:0.2f}s)'.format(time.time()- tic))
             self.dataset = dataset
+            self.filter_dataset()
             self.createIndex()
+
+
+    def filter_dataset(self): 
+        """
+        Filter dataset based on list of images in SALICON, and replace cat_ids in GT annotations
+        """
+        imgs, annots, cats = [], [], []
+        if 'images' in self.dataset:
+                for img in self.dataset['images']:
+                    if img['id'] in self.list_of_images.keys():
+                        imgs.append(img)
+
+        if 'annotations' in self.dataset:
+            for ann in self.dataset['annotations']:
+                if ann['image_id'] in self.list_of_images.keys(): # Is the anntoation part of list of salicon images?
+                    if ann['category_id'] in self.COCO_TO_SALICON.keys():
+                        ann['category_id'] = self.COCO_TO_SALICON[ann['category_id']] # Update cat id in annotation
+                        annots.append(ann)
+
+        if 'categories' in self.dataset:
+            for cat in self.dataset['categories']:
+                if cat['id'] in self.COCO_TO_SALICON.keys():
+                    coco_cat_id = cat['id']
+                    coco_cat_label = cat['name']
+                    salicon_cat_id = self.COCO_TO_SALICON[coco_cat_id]
+                    salicon_cat_label = self.SALICON_CLASSES[salicon_cat_id-1]
+                    # print("COCO_CAT_ID ({}), COCO_LABEL ({}), SALICON_CAT_ID({}), SALICON_LABEL({})".format(coco_cat_id,
+                    #                                                                                         coco_cat_label,
+                    #                                                                                         salicon_cat_id,
+                    #                                                                                         salicon_cat_label
+                    #                                                                                         ))
+                    cat = {'id': salicon_cat_id, 'name': salicon_cat_label, 'supercategory': 'unset'}
+                    cats.append(cat)
+        
+        # Sort categories list by their id, to match the SALICON_CLASSES list
+        sorted_cats = []
+        for i in range(1, len(cats)+1):
+            print(i)
+            for cat in cats:
+                cat_id = cat['id']
+                if cat_id == i:
+                    sorted_cats.append(cat)
+        
+        cats = sorted_cats
+
+        print("Original num of annots: {}, Filtered annots: {}".format( len(self.dataset['annotations']), len(annots) ))
+
+        self.dataset['images'] = imgs
+        self.dataset['annotations'] = annots
+        self.dataset['categories'] = cats
+        print("Dataset filtered...")
+
 
     def createIndex(self):
         # create index
@@ -130,59 +184,20 @@ class SALICON:
         imgToAnns,catToImgs = defaultdict(list),defaultdict(list)
         if 'annotations' in self.dataset:
             for ann in self.dataset['annotations']:
-                if ann['image_id'] in self.list_of_images.keys():
-                    if ann['category_id'] in self.COCO_TO_SALICON.keys():
-                        ann['category_id'] = self.COCO_TO_SALICON[ann['category_id']]
-                        imgToAnns[ann['image_id']].append(ann)
-                        anns[ann['id']] = ann
+                imgToAnns[ann['image_id']].append(ann)
+                anns[ann['id']] = ann
 
         if 'images' in self.dataset:
             for img in self.dataset['images']:
-                if img['id'] in self.list_of_images.keys():
-                    imgs[img['id']] = img
+                imgs[img['id']] = img
 
-        if add_cats:
-            if 'categories' in self.dataset:
-                for cat in self.dataset['categories']:
-                    if cat['id'] in self.COCO_TO_SALICON.keys():
-                        coco_cat_id = cat['id']
-                        coco_cat_label = cat['name']
-                        salicon_cat_id = self.COCO_TO_SALICON[coco_cat_id]
-                        salicon_cat_label = self.SALICON_CLASSES[salicon_cat_id-1]
-                        # print("COCO_CAT_ID ({}), COCO_LABEL ({}), SALICON_CAT_ID({}), SALICON_LABEL({})".format(coco_cat_id,
-                        #                                                                                         coco_cat_label,
-                        #                                                                                         salicon_cat_id,
-                        #                                                                                         salicon_cat_label
-                        #                                                                                         ))
-                        cat = {'id': salicon_cat_id, 'name': salicon_cat_label, 'supercategory': 'unset'}
-                        cats.append(cat)
-
-        if sort_cats:
-            # sort cats (just to keep the order in the salicon.names file)
-            cats_sorted = []
-            for i in range(1, len(cats)+1):
-                cat = cats[i-1]
-                for cat_dict in cats:
-                    if cat_dict['id'] == i:
-                        cats_sorted.append(cat_dict)
-            cats = cats_sorted
-
-        if add_cats:
-            self.dataset['categories'] = cats # overwrite categories in class SALICON
-
-        print('')        
-        print('*'*20, ' DEBUG')
-        print('sort cats: {}'.format(sort_cats))
-        print(cats)
-        print('*'*20, ' DEBUG')
-        print('')
+        if 'categories' in self.dataset:
+            for cat in self.dataset['categories']:
+                cats.append(cat)
 
         if 'annotations' in self.dataset and 'categories' in self.dataset:
             for ann in self.dataset['annotations']:
-                if ann['category_id'] in self.COCO_TO_SALICON.keys():
-                    salicon_cat = self.COCO_TO_SALICON[ann['category_id']]
-                    if ann['image_id'] in self.list_of_images.keys():
-                        catToImgs[salicon_cat].append(ann['image_id'])
+                catToImgs[ann['category_id']].append(ann['image_id'])
 
         print('index created!')
 
@@ -383,7 +398,8 @@ class SALICON:
         :param   resFile (str)     : file name of result file
         :return: res (obj)         : result api object
         """
-        res = SALICON(list_of_images=self.list_of_images_from_path)
+        res = SALICON(list_of_images=self.path_to_list_of_images)
+
         res.dataset['images'] = [img for img in self.dataset['images']]
 
         print('Loading and preparing results...')
@@ -404,7 +420,7 @@ class SALICON:
             for id, ann in enumerate(anns):
                 ann['id'] = id+1
         elif 'bbox' in anns[0] and not anns[0]['bbox'] == []:
-            res.dataset['categories'] = self.cats
+            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
             for id, ann in enumerate(anns):
                 bb = ann['bbox']
                 x1, x2, y1, y2 = [bb[0], bb[0]+bb[2], bb[1], bb[1]+bb[3]]
@@ -414,7 +430,7 @@ class SALICON:
                 ann['id'] = id+1
                 ann['iscrowd'] = 0
         elif 'segmentation' in anns[0]:
-            res.dataset['categories'] = self.cats
+            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann['area'] = maskUtils.area(ann['segmentation'])
@@ -423,7 +439,7 @@ class SALICON:
                 ann['id'] = id+1
                 ann['iscrowd'] = 0
         elif 'keypoints' in anns[0]:
-            res.dataset['categories'] = self.cats
+            res.dataset['categories'] = copy.deepcopy(self.dataset['categories'])
             for id, ann in enumerate(anns):
                 s = ann['keypoints']
                 x = s[0::3]
@@ -435,14 +451,10 @@ class SALICON:
         print('DONE (t={:0.2f}s)'.format(time.time()- tic))
 
         res.dataset['annotations'] = anns
-        res.createIndex(add_cats=False, sort_cats=False)
 
-        pdb.set_trace()
-        print("Val immages: {}, Val cats: {}, first cat name: {}".format(
-                                                                         len(res.dataset['images']),
-                                                                         len(res.dataset['categories']),
-                                                                         res.dataset['categories'][0],
-                                                                         )
+        res.createIndex()
+
+        print("Val immages: {}, Val cats: {}, first cat name: {}".format(len(res.dataset['images']), len(res.dataset['categories']), res.dataset['categories'][0] ))
 
         return res
 
